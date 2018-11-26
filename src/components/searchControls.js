@@ -5,7 +5,7 @@ import { Link } from 'react-router'
 import { templateListSet } from '../actions/actions';
 import fetchData from '../network/fetch-data';
 import { push } from 'react-router-redux'
-
+import ReactTooltip from 'react-tooltip'
 // Material UI imports
 import RaisedButton from 'material-ui/FlatButton';
 import {Card, CardActions, CardHeader, CardMedia, CardTitle, CardText} from 'material-ui/Card';
@@ -16,15 +16,7 @@ import { URL_CATEGORIES_LIST, URL_BASE_MULTIMEDIA_IMAGES} from '../links';
 
 //Static storage class.
 import QueryStore from './QueryStore';
-
-import EntryPreview from './record/entry-preview'
-
-// Allows processing and using XML input.
-import XmlReader from 'xml-reader'
-import xmlQuery from 'xml-query'
-
 import BrowseList from './browse-list'
-import Paging from './paging'
 
 // This is the library for all the cool progress indicator components
 import Halogen from 'halogen';
@@ -33,50 +25,36 @@ import { browserHistory } from 'react-router';
 import SelectField from 'material-ui/SelectField';
 import MenuItem from 'material-ui/MenuItem';
 
-// Date picker
-// import 'react-date-picker/index.css'
-// import { DateField, DatePicker } from 'react-date-picker'
-
 import urlUtils from './urlUtils'
 
 class SearchControls extends Component {
 
     constructor(props) {
       super()
-      //debugger
       if ( props.location.query && props.location.query.query && props.location.query.query.length > 0){
-        //debugger
-        this.state = { query : props.location.query.query , enabled: false}
-
+        this.state = { query : props.location.query.query}
       } else {
-        this.state = { query : "", enabled: false}
+        this.state = { query : ""}
       }
     }
 
 
-    // async componentWillReceiveProps(next) {
-    //
-    // }
-    //
-    componentWillMount() {
-      var props = this.props
-      if ( props.location.query && props.location.query.query && props.location.query.query.length > 0){
-          props.changeQuery({value: props.location.query.query, preventUpdate: false} )
-      }
-     }
-    //
-    // async loadPageFromProps(props){
-    //
-    // }
+    async componentWillReceiveProps(next) {
+        //debugger
+        this.setState({ query: next.location.query.query || ""})
+    }
+
+    // componentWillMount() {
+    //   var props = this.props
+    //   if ( props.location.query && props.location.query.query && props.location.query.query.length > 0){
+    //       //props.changeQuery({value: props.location.query.query} )
+    //   }
+    //  }
 
     handleQueryElement = (name,value,preventUpdate) => {
-
       this.setState({query: value})
-
-      if ( this.props.location.pathname.indexOf("/search/") > -1 ){
-        this.props.changeQuery({value: value, preventUpdate: preventUpdate})
-      }
-    //  console.log(JSON.stringify(this.state.advancedSearch))
+    //  debugger
+      this.props.changeQuery(value)
     }
 
     prepareURLVariables = () => {
@@ -85,27 +63,34 @@ class SearchControls extends Component {
       return fetch.objectToGetVariables(adVar)
     }
 
-    switchToSearch (props) {
-
-      if ( props.location.pathname.indexOf("/search/") < 0 ){
-
-      var advSearch = {query: this.state.query}
-
-      var  url = urlUtils.formatUrl("search"
-                                        ,this.state.currentPage ? this.state.currentPage : 1
-                                        ,this.state.pageLimit ? this.state.pageLimit : 10
-                                        ,this.state.sorting
-                                        ,advSearch);
-
-    // debugger
-      props.goToUrl(url);
-      }
-    }
+    // switchToSearch (props,enabled) {
+    //   // debugger
+    //   var newUrlQuery = props.location.query
+    //   if ( this.state.query ){
+    //     newUrlQuery.query = this.state.query
+    //   } else {
+    //     if ( newUrlQuery.query ){
+    //       delete newUrlQuery.query
+    //     }
+    //   }
+    //
+    //   //newUrlQuery.adv = enabled
+    //
+    //   var parameters = []
+    //
+    //   for (var k in newUrlQuery ){
+    //     parameters.push(k+"="+newUrlQuery[k])
+    //   }
+    //
+    //   var pathname = props.location.pathname.indexOf("search") < 0 ? "/search" : props.location.pathname
+    //
+    //   var properURL = pathname + (parameters.length > 0 ? "?"+parameters.join("&") : "")
+    //   //console.log("SCONT: "+properURL)
+    //   props.goToUrl(properURL);
+    // }
 
     handleToggleAdvancedSearch () {
-      // this.setState({enabled: this.state.enabled ? false : true})
-      this.props.toggleAdvancedSearch(this.state.query)
-      this.switchToSearch (this.props)
+      this.props.toggleAdvancedSearch()
     }
 
 
@@ -113,24 +98,24 @@ class SearchControls extends Component {
 
       let buttonColor = "#e6e6e6"
       let buttonHoverColor = "#b5b5b5"
-
-      let standardSearch = <span><span style={{marginLeft:95}}>Search:</span>
+// <p data-tip="Searches all Register text and notes" ><img height="20" src="/assets/lilQ.png" /></p><ReactTooltip />
+      let standardSearch = <span><span style={{marginLeft:95}} data-tip="Searches all Register text and notes" ><img height="20" src="/assets/lilQ.png" />Search:</span><ReactTooltip />
                             <TextField
                               id='query'
-                              hintText=''
-                              style={{width: 200,marginLeft:5, marginTop:-5}}
+                              hintText='Full Text'
+                              style={{width: 180,marginLeft:5, marginTop:-5}}
                               value = {this.state.query}
                               onChange={(event,value) => {this.handleQueryElement("query",value,true)}}
                               onKeyPress={(event,value,e) => {
                                 if (event.key === 'Enter'){
-                                  if ( this.state.query.trim().indexOf("SRO") == 0 ){
-                                    var number = this.state.query.trim()
-                                  } else {
                                     this.handleQueryElement("query",this.state.query,false);
-                                    this.switchToSearch (this.props);
-                                  }
+                                    this.props.runSearch();
+                                    console.log("searchControls: "+this.state.query)
+                                    //this.switchToSearch (this.props,this.state.enabled);
+                                  //  handleToggleAdvancedSearch ();
                                 }
                               }}
+
                             /></span>
 
       return (

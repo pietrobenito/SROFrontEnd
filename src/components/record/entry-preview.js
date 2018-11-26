@@ -74,15 +74,17 @@ export default class EntryPreview extends Component {
           enterer = " "
         }
 
-        let maxPreviewElements = 3
+        let maxPreviewElements = 1
         let translatedPage = xmlTranslator(data.innerHTML)
 
         var doc = $.parseHTML(translatedPage)
 
         docStyler(doc)
 
+
+
         // debugger
-        var date = $(".ab[type=metadata] > span[type=Register]", doc)[0].innerHTML
+        var date = $(".ab[type=metadata] > span[type=Register]", doc)[0].innerText
 
         var status = $(".ab[type=metadata] > span[type=status]", doc)[0].getAttribute("subtype")
         var isCancelled = (status.toLowerCase().indexOf("cancelled") > -1 ? true : false)

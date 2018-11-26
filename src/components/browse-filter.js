@@ -87,10 +87,10 @@ class BrowseNames extends Component {
       //debugger
       let results
 
-      let filterYears = ["1557-1559"]//["1557-1560","1561-1565","1566-1570","1571-1580","1581-1590","1591-1595","1596-1600","1601-1605","1606-1610","1611-1615","1616-1620"]
+      let filterYears = ["1557-1560"]//["1557-1560","1561-1565","1566-1570","1571-1580","1581-1590","1591-1595","1596-1600","1601-1605","1606-1610","1611-1615","1616-1620"]
 
-      for ( var i = 1565; i <= 1620; i = i+5){
-         filterYears.push((i-5) + "-" + i);
+      for ( var i = 1565; i <= 1640; i = i+5){
+         filterYears.push((i-4) + "-" + i);
       }
 
       //
@@ -103,7 +103,7 @@ class BrowseNames extends Component {
                     </span>
           break;
         case "/browser/volume":
-        results = <span> <h3 style={{marginTop: 5,marginBottom:20}}> Browse By Volume</h3> {["A","B","C"].map((item,i) =>
+        results = <span> <h3 style={{marginTop: 5,marginBottom:20}}> Browse By Volume</h3> {["A","B","C","D"].map((item,i) =>
                     <div style={{fontSize:20, marginTop:10,marginLeft:20}} key={i} >
                       <Link to={"/browser/1/10/date/ascending?filters=volume_"+item}>{"Volume "+item}</Link>
                     </div>) }

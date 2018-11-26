@@ -43,6 +43,14 @@ class Browse extends Component {
 
     async componentWillReceiveProps(next) {
 
+      var nextRequest = next.location.pathname+next.location.search
+      var currentRequest = this.props.location.pathname+this.props.location.search
+
+      // Prevents multiple reloading, due to change in props after running "loadPageFromProps", probably not the best way to do it, but it does the job.
+      if ( nextRequest === currentRequest ){
+        return;
+      }
+
       var advSearch = this.state.advancedSearch
       for( var k in advSearch ){
         if ( k == "enabled" || k == "query"){
@@ -59,6 +67,7 @@ class Browse extends Component {
     }
 
     async componentWillMount() {
+
         this.loadPageFromProps(this.props)
      }
 
@@ -82,8 +91,7 @@ class Browse extends Component {
 
       this.setState({loading : true})
 
-
-      var data = await fetch.getEntriesAdvancedSearch(readyData, currentPage, pageLimit, xmlField, direction, filters);
+      var data = await fetch.getEntriesAdvancedSearch("browser",readyData, currentPage, pageLimit, xmlField, direction, filters);
 
       var ast = XmlReader.parseSync(data);
       var pagesAvailable = xmlQuery(ast).find('paging').find('last').text();

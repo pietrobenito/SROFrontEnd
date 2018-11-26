@@ -22,16 +22,71 @@ import { push } from 'react-router-redux'
 
 import SearchControls from './searchControls';
 
+import searchTools from './searchTools';
+
 class CommonView extends Component {
 
-  constructor() {
+  constructor(props) {
     super()
+
+    var advSearch = searchTools.getSOptsFromProps(props)
+      advSearch.enabled = false
+       //
+       // debugger
+
     this.state = {
       isAMobile: (navigator.userAgent.indexOf('Mobile') > -1)? true : false,
       open: false,
       open2: false,
-      banner: "/assets/bannerGoudy.png",
+      loading : Object.keys(props.location.query).length > 0 ? true : false,
+
+      // Search & Browsing parameters here.
+      sorting:{
+          sortField: props.params.sortField,
+          direction: props.params.direction || "ascending"
+        },
+
+      allContent : null,//data,
+      pagesAvailable : 0, //parseInt(pagesAvailable),
+      currentPage : parseInt(props.params.page) || 1, //parseInt(currentPage),
+      pageLimit: parseInt(props.params.pageLimit) || 10,// parseInt(pageLimit),
+
+      // Search Parameters here.
+
+      advancedSearch: advSearch,
+      enabled: false,
+      banner: "/assets/BannerGoudy.png",
     };
+
+
+    if ( Object.keys(props.location.query).length > 0 ) {
+
+      this.runSearch()
+    }
+  }
+
+  async componentWillReceiveProps(next) {
+    var props = next
+    var updatedAdvSearchOptions = searchTools.getSOptsFromProps(props)
+    var newState = {
+      // Search & Browsing parameters here.
+      sorting:{
+          sortField: props.params.sortField,
+          direction: props.params.direction || "ascending"
+        },
+
+      allContent : null,//data,
+      pagesAvailable : 0, //parseInt(pagesAvailable),
+      currentPage : parseInt(props.params.page) || 1, //parseInt(currentPage),
+      pageLimit: parseInt(props.params.pageLimit) || 10,// parseInt(pageLimit),
+
+      // Search Parameters here.
+
+      advancedSearch: updatedAdvSearchOptions,
+      enabled: this.state.enabled,
+    }
+  //  debugger
+    this.setState(newState, async ()=> {await this.runSearch()} );
   }
 
   handleTouchTap = (event,target) => {
@@ -53,21 +108,102 @@ class CommonView extends Component {
     });
   };
 
- toggleAdvancedSearch = (query) => {
+ toggleAdvancedSearch = () => {
+
    //debugger
 
-   this.setState({advancedSearchEnabled : this.state.advancedSearchEnabled ? false : true, query: query })
+   var isInSearch = this.props.location.pathname.indexOf("search") > -1
+
+
+
+
+   var advSearch = this.state.advancedSearch
+
+   var didClose = advSearch.enabled
+
+       advSearch.enabled = advSearch.enabled ? false : true
+       advSearch.enabled = !isInSearch ? true : advSearch.enabled
+
+       didClose = didClose && !advSearch.enabled
+
+  if( didClose ){ // then clear Advanced Search
+    //  debugger
+      advSearch = {"query":"",
+                    "filters":[],
+                    "person":"",
+                    "minDate":"",
+                    "maxDate":"",
+                    "minFees":"",
+                    "maxFees":"",
+                    "entry":"",
+                    "enabled":advSearch.enabled}
+  }
+
+  if ( !isInSearch ){
+    advSearch.enabled = true; //this.props.goToUrl("/search")
+    this.setState({advancedSearch : advSearch, enabled: advSearch.enabled } , () => { this.props.goToUrl("/search") } )
+
+  } else  {
+    // debugger
+    // advSearch.enabled = false;
+
+    this.setState({advancedSearch : advSearch, enabled: advSearch.enabled })
+  }
+
+  //  console.log("HERE:"+ JSON.stringify(advSearch)+" this.state.: "+this.state.enabled)
  };
 
- changeQuery = (query) => {
-   this.setState({query : query})
+ runSearch = async () => {
+    this.setState({loading : true})
+    var newData = await searchTools.executeSearch(this.state.advancedSearch,
+                              this.state.currentPage,
+                              this.state.pageLimit,
+                              this.state.sorting.sortField,
+                              this.state.sorting.direction,
+                              this.state.advancedSearch.filters)
+
+    // debugger
+    if ( !this.state.advancedSearch || (Object.keys(this.state.advancedSearch).length == 1 && Object.keys(this.state.advancedSearch)[0] == "query" && !this.state.advancedSearch.query)){
+      this.setState({allContent : null,
+                  pagesAvailable : parseInt(newData.pagesAvailable),
+                  loading : false})
+    } else {
+      this.setState({allContent : newData.allContent,
+                  pagesAvailable : parseInt(newData.pagesAvailable),
+                  loading : false})
+    }
  }
+
+ searchURL = () => {
+      //  debugger
+         var url = searchTools.formatUrlAndGoto(this.state.advancedSearch, this.props , "search", true);
+         //console.log("HERE "+url)
+         this.props.goToUrl(url);
+
+ }
+
+
+ changeQuery = (query) => {
+  // debugger
+   var adSearch = this.state.advancedSearch
+       adSearch.query = query
+   //console.log("Change QUERY: "+query)
+   this.setState({advancedSearch : adSearch, query: query })
+ }
+
+
+ updateAdvancedSearch = (adSearch) => {
+   this.setState({advancedSearch : adSearch, query: adSearch.query })
+ }
+
+
 
  changeBanner = () => {
     // var selectedBanner = this.state.banner.indexOf("bannerSRO3.png") > -1 ? "/assets/bannerSRO4.png" : "/assets/bannerSRO3.png"
     // this.setState({banner : selectedBanner})
  }
-  render() {
+
+ render() {
 
     let logoStyle = {height: 50,marginLeft:5}
     let buttonStyle = {marginRight:10}
@@ -79,6 +215,28 @@ class CommonView extends Component {
     let buttonColor = "#e6e6e6"
     let buttonHoverColor = "#b5b5b5"
 
+
+    let child = React.cloneElement(this.props.children, { advancedSearch : this.state.advancedSearch,
+                                    enabled: this.state.enabled,
+                                    query: this.state.query,
+                                    data: this.state.allContent,
+                                    loading : this.state.loading,
+                                    pagesAvailable : this.state.pagesAvailable,
+                                    runSearch : this.runSearch,
+                                    updateAdvancedSearch : this.updateAdvancedSearch})
+
+
+                                    //debugger
+    if ( this.props.location.pathname.indexOf("browse") > -1 ){
+      child = React.cloneElement(this.props.children, { advancedSearch : this.state.advancedSearch,
+                                      enabled: this.state.enabled,
+                                      data: this.state.allContent,
+                                      loading : this.state.loading,
+                                      pagesAvailable : this.state.pagesAvailable,
+                                      runSearch : this.runSearch })
+
+    }
+
     return <div>
 
     <a href="/">
@@ -89,7 +247,7 @@ class CommonView extends Component {
                   </span>
                 </Card>
     </a>
-    
+
         <Card style={{ ...bodyStyle, minHeight:"52vh",backgroundImage: 'url("/assets/page.png")', backgroundSize: "100%"}}>
 
         {/* <span>Stationers' Register Online</span> */}
@@ -135,18 +293,17 @@ class CommonView extends Component {
           >
             <Menu>
               <MenuItem value={1} primaryText="About" onClick={ (e) => {this.props.goToUrl("/about"); this.handleRequestClose()}}/>
-              <MenuItem value={2} primaryText="- The Stationers' Register" onClick={ (e) => {this.props.goToUrl("/about?g=stationersRegister"); this.handleRequestClose()}}/>
-              <MenuItem value={3} primaryText="- The Stationers' Company" onClick={ (e) => {this.props.goToUrl("/about"); this.handleRequestClose()}}/>
-              <MenuItem value={4} primaryText="- History of Copyright" onClick={ (e) => {this.props.goToUrl("/about"); this.handleRequestClose()}}/>
-              <MenuItem value={5} primaryText="- Bibliography" onClick={ (e) => {this.props.goToUrl("/about?g=bibliography"); this.handleRequestClose(); }} />
+              <MenuItem value={2} primaryText="- The Stationers' Company" onClick={ (e) => {this.props.goToUrl("/about?g=stationersCompany"); this.handleRequestClose()}}/>
+              <MenuItem value={3} primaryText="- The Stationers' Register" onClick={ (e) => {this.props.goToUrl("/about?g=stationersRegister"); this.handleRequestClose()}}/>
+              <MenuItem value={4} primaryText="- Bibliography" onClick={ (e) => {this.props.goToUrl("/about?g=bibliography"); this.handleRequestClose(); }} />
               <Divider style={dividerFormat}/>
               {/* <Divider style={dividerFormat} /><Divider style={dividerFormat} /> */}
-              <MenuItem value={6} primaryText="Project" onClick={ (e) => {this.props.goToUrl("/project"); this.handleRequestClose()}}/>
-              <MenuItem value={7} primaryText="- History" onClick={ (e) => {this.props.goToUrl("/project"); this.handleRequestClose()}}/>
-              <MenuItem value={8} primaryText="- Editorial" onClick={ (e) => {this.props.goToUrl("/project"); this.handleRequestClose()}}/>
-              <MenuItem value={9} primaryText="- Technical" onClick={ (e) => {this.props.goToUrl("/project"); this.handleRequestClose()}}/>
-              <MenuItem value={10} primaryText="- Credits" onClick={ (e) => {this.props.goToUrl("/project"); this.handleRequestClose()}}/>
-              <MenuItem value={11} primaryText="- Permissions" onClick={ (e) => {this.props.goToUrl("/project"); this.handleRequestClose()}}/>
+              <MenuItem value={5} primaryText="Project" onClick={ (e) => {this.props.goToUrl("/project"); this.handleRequestClose()}}/>
+              <MenuItem value={6} primaryText="- Project History" onClick={ (e) => {this.props.goToUrl("/project?g=history"); this.handleRequestClose()}}/>
+              <MenuItem value={7} primaryText="- Editorial" onClick={ (e) => {this.props.goToUrl("/project?g=editorial"); this.handleRequestClose()}}/>
+              <MenuItem value={8} primaryText="- Technical" onClick={ (e) => {this.props.goToUrl("/project?g=technical"); this.handleRequestClose()}}/>
+              <MenuItem value={9} primaryText="- Licence" onClick={ (e) => {this.props.goToUrl("/project?g=license"); this.handleRequestClose()}}/>
+              <MenuItem value={10} primaryText="- Credits" onClick={ (e) => {this.props.goToUrl("/project?g=credits"); this.handleRequestClose()}}/>
             </Menu>
           </Popover>
 
@@ -156,14 +313,17 @@ class CommonView extends Component {
 
           <SearchControls
             changeQuery = { this.changeQuery }
-            toggleAdvancedSearch = { this.toggleAdvancedSearch }
-            routeParams={{query:""}}
+            toggleAdvancedSearch = {this.toggleAdvancedSearch }
             location={this.props.location}
+            runSearch= {this.searchURL}
           />
 
         </Card>
 
-        {React.cloneElement(this.props.children, { advancedSearchEnabled : this.state.advancedSearchEnabled, query : this.state.query })}
+        {
+          child
+        }
+        {/* {this.props.children} */}
 
      </Card>
 
@@ -181,19 +341,22 @@ class CommonView extends Component {
          <a href="https://stationers.org/" target="_blank">
            <img src="https://stationers.org/images/module-images/small-crest.png" style={logoStyle} /></a>
          <a href="http://gla.ac.uk" target="_blank">
-           <img src="http://www.gla.ac.uk/media/media_434161_en.jpg" style={logoStyle} />
+           <img src="/assets/GLogo.jpg" style={logoStyle} />
          </a>
          <a href="http://www.ox.ac.uk" target="_blank">
            <img src="https://upload.wikimedia.org/wikipedia/en/thumb/2/2f/University_of_Oxford.svg/1280px-University_of_Oxford.svg.png" style={logoStyle} />
          </a>
-         <div style={{backgroundColor:"#00B5DA", height:50, width: 180, display:"inline-block",paddingTop:3,paddingBottom:5,marginLeft:5}}><a href="https://creativecommons.org/licenses/by-sa/4.0/legalcode" target="_blank" >
-           <img src="https://creativecommons.org/images/deed/cc_icon_white_x2.png" style={{...logoStyle,height:45}} />
-           <img src="https://creativecommons.org/images/deed/attribution_icon_white_x2.png" style={{...logoStyle,height:40}} />
-           <img src="https://creativecommons.org/images/deed/sa_white_x2.png" style={{...logoStyle,height:45}} />
+         <a href="https://bibsocamer.org/" target="_blank">
+            <img src="/assets/bsamlogo.png" style={logoStyle} />
          </a>
-          </div>
         </Card>
       </Card>
+      <Card style={{ ...bodyStyle, marginTop:10, marginBottom:5, textAlign:"center",backgroundImage: 'url("/assets/page.png")', backgroundSize: "100%"}}>
+        <Card style={{paddingTop:8,paddingBottom:1}}>
+          <p>Contact us: editors@stationersregister.online</p>
+        </Card>
+      </Card>
+
       <div style={{height:"25vh"}}></div>
     </div>
   }

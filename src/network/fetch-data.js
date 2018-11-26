@@ -46,17 +46,21 @@ export default class fetchData {
     var keys = Object.keys(args);
     var preparedQuery = ""
     for (var a in keys ){
-      if ( keys[a] == "enabled" ){
+      if ( keys[a] == "enabled" || keys[a] == "adv" ){
         continue;
       }
       if ( keys[a] == "filters" ){
         continue;
       }
 
-      if ( keys[a] == "minDate" && args[keys[a]] ){
+      if ( (keys[a] == "minDate" || keys[a] == "maxDate")  && args[keys[a]] ){
+
+        var monthLimit = keys[a] == "minDate" ? "1" : "12"
+        var dayLimit = keys[a] == "minDate" ? "1" : "31"
+
         if ( args[keys[a]].year ){
-          args[keys[a]].month = parseInt(args[keys[a]].month ? args[keys[a]].month : "1")
-          args[keys[a]].day = parseInt(args[keys[a]].day ? args[keys[a]].day : "1")
+          args[keys[a]].month = parseInt(args[keys[a]].month ? args[keys[a]].month : monthLimit)
+          args[keys[a]].day = parseInt(args[keys[a]].day ? args[keys[a]].day : dayLimit)
 
           args[keys[a]].month = args[keys[a]].month < 10 ? "0"+args[keys[a]].month : args[keys[a]].month+""
           args[keys[a]].day = args[keys[a]].day < 10 ? "0"+args[keys[a]].day : args[keys[a]].day+""
@@ -66,21 +70,6 @@ export default class fetchData {
 
         continue;
       }
-
-      if ( keys[a] == "maxDate" && args[keys[a]] ){
-        if ( args[keys[a]].year ) {
-          args[keys[a]].month = parseInt(args[keys[a]].month ? args[keys[a]].month : "12")
-          args[keys[a]].day = parseInt(args[keys[a]].day ? args[keys[a]].day : "31")
-
-          args[keys[a]].month = args[keys[a]].month < 10 ? "0"+args[keys[a]].month : args[keys[a]].month+""
-          args[keys[a]].day = args[keys[a]].day < 10 ? "0"+args[keys[a]].day : args[keys[a]].day+""
-          
-          preparedQuery = preparedQuery+ "&"+keys[a]+"="+args[keys[a]].year+"-"+args[keys[a]].month+"-"+args[keys[a]].day
-        }
-
-        continue;
-      }
-
 
       if ( args[keys[a]] && args[keys[a]] != undefined)
       preparedQuery = preparedQuery+ "&"+keys[a]+"="+args[keys[a]]
@@ -91,19 +80,27 @@ export default class fetchData {
 
   // Need to change this to post function, with JSON data inside. Get rid of the long address... just advSearch as identifying bit, .... or not...
 
-  async getEntriesAdvancedSearch(args,page,limit,sortField,direction,filters) {
+  async getEntriesAdvancedSearch(reqSource,args,page,limit,sortField,direction,filters) {
 
     var preparedQuery = this.objectToGetVariables(args)
-    console.log(preparedQuery)
-      preparedQuery = urlBase + "advSearch?"+preparedQuery
-                                            +"&page="+page
-                                            +"&limit="+limit
-                                            + ( sortField ? "&sortField="+sortField : "" )
-                                            + ( direction ? "&direction="+direction : "" )
-                                            + ((filters && filters.length > 0 ) ? "&filters="+JSON.stringify(filters) : "")
-    // console.log(preparedQuery)
 
-    return await this.getGeneric( preparedQuery  )
+      if ( reqSource.indexOf("search") >= 0 && (preparedQuery.length < 1) ){
+        return ""
+      }
+        //console.log(preparedQuery)
+          preparedQuery = urlBase + "advSearch?"+preparedQuery
+                                                +"&page="+page
+                                                +"&limit="+limit
+                                                + ( sortField ? "&sortField="+sortField : "" )
+                                                + ( direction ? "&direction="+direction : "" )
+                                                + ((filters && filters.length > 0 ) ? "&filters="+JSON.stringify(filters) : "")
+        console.log("ASKED FOR:"+ preparedQuery)
+      //  debugger
+
+        var r = await this.getGeneric( preparedQuery  )
+        // debugger
+        return r
+
   }
 
   async getEntriesForQueryWithSorting(query,page,limit,sortField,direction) {

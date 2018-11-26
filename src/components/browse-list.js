@@ -43,7 +43,6 @@ class BrowseList extends Component {
     constructor(props) {
       super()
 
-      //debugger
       var filters = props.location.query.filters ? props.location.query.filters.split(",") : [];
 
       var advSearch = props.advSearchParameters
@@ -52,8 +51,37 @@ class BrowseList extends Component {
         advSearch = {}
       }
 
+      if(filters.length > 0)
       advSearch.filters = filters;
-      //debugger
+
+      var sortDefaultString = ""
+
+      switch (props.sorting.sortField) {
+        case "date":
+          sortDefaultString += "date"
+          break;
+        case "volume":
+          sortDefaultString += "vol"
+          break;
+        case "relevance":
+          sortDefaultString += "relevance"
+          break;
+        default:
+
+      }
+
+      if ( props.sorting.direction && sortDefaultString.length > 0 && sortDefaultString.indexOf("relevance") < 0){
+        if ( props.sorting.direction == "descending") {
+          sortDefaultString += "Desc"
+        } else {
+          sortDefaultString += "Asc"
+        }
+      }
+
+      if ( props.linkRoot != "search" && sortDefaultString.indexOf("relevance") > -1 ){
+          sortDefaultString = "dateAsc" // default value for Browse option. Cannot be relevance.
+      }
+
       var newState = {
         allContent : props.allContent,
         pagesAvailable : props.pagesAvailable,
@@ -63,9 +91,9 @@ class BrowseList extends Component {
         sorting: props.sorting,
         advSearchParameters : advSearch,
         loading : props.loading,
-        sortingFieldControl : props.linkRoot == "search" ? "relevance" : "dateAsc", // default increasing ID or volument ascending order.
+        sortingFieldControl : sortDefaultString
       }
-
+      // debugger
       for ( var f in filters){
         newState["filter_"+filters[f]] = true
       }
@@ -75,11 +103,6 @@ class BrowseList extends Component {
     }
 
     handleSortingChange = (event, index, value) => {
-
-      {/* <MenuItem value={{sortField: "date", direction: "ascending"}} primaryText="Date (earliest)" />
-      <MenuItem value={{sortField: "date", direction: "descending"}} primaryText="Date (latest)" />
-      <MenuItem value={{sortField: "volume", direction: "ascending"}} primaryText="Volume/page (Asc)" />
-      <MenuItem value={{sortField: "volume", direction: "descending"}} primaryText="Volume/page (Desc)" /> */}
       var sorting
       switch (value) {
         case "dateAsc":
@@ -103,9 +126,10 @@ class BrowseList extends Component {
 
       this.setState({sorting : sorting, sortingFieldControl : value})
 
+
       var url = urlUtils.formatUrl(this.state.linkRoot,this.state.currentPage,this.state.pageLimit,sorting, this.state.advSearchParameters)
 
-      console.log(url)
+      console.log("BROWSSE: "+url)
       this.props.goToUrl(url)
 
     }
@@ -121,15 +145,17 @@ class BrowseList extends Component {
     }
 
     componentWillReceiveProps(next){
-
+       //debugger
       var filters = next.location.query.filters ? next.location.query.filters.split(",") : [];
       var advSearch = next.advSearchParameters
 
       if ( !advSearch ){
         advSearch = {}
       }
-      advSearch.filters = filters;
 
+      if ( filters.length > 0 )
+      advSearch.filters = filters;
+      // debugger
       var newState = {
         allContent : next.allContent,
         pagesAvailable : next.pagesAvailable,
@@ -141,7 +167,7 @@ class BrowseList extends Component {
         toggleFilter : next.toggleFilter,
         loading : next.loading,
       }
-
+      // debugger
       for ( var f in filters){
         newState["filter_"+filters[f]] = true
       }
@@ -170,7 +196,7 @@ class BrowseList extends Component {
      }
 
     handleFilterClick(item){
-
+// sortingFieldControl
       var dat = this.state
       dat[item] = dat[item] ? false : true
 
@@ -194,12 +220,11 @@ class BrowseList extends Component {
       advParams.filters = enabledFilters
 
       var url = urlUtils.formatUrl(this.state.linkRoot,1,this.state.pageLimit,this.state.sorting,advParams);
-      console.log(url);
 
       this.props.goToUrl(url);
     }
 
-    getDownloadable (){
+    getDownloadableXML (){
       if ( this.state.allContent ){
         var link = document.createElement('a');
         link.download = "SRO-Page-"+this.state.currentPage+".xml";
@@ -208,6 +233,17 @@ class BrowseList extends Component {
         link.click();
       }
       // var downloadData = "data:application/octet-stream," + encodeURIComponent(this.state.allContent);
+      // window.open(downloadData, 'SRO-document.xml');
+    }
+
+    getDownloadableTXT (){
+      var link = document.createElement('a');
+      link.download = "SRO-Page-"+this.state.currentPage+".txt";
+      var plainText = this.state.allContent.replace(/<\/?[^>]+(>|$)/g, "");
+      link.href = 'data:,' + encodeURIComponent(plainText);
+      link.click();
+      // console.log (this.state);
+      // var downloadData = "data:application/octet-stream,"
       // window.open(downloadData, 'SRO-document.xml');
     }
 
@@ -237,18 +273,24 @@ class BrowseList extends Component {
 
       var resultsToShow ;
 
-      var haveResults = false;
+      var haveResults;
 
       if ( this.state.loading ){
         resultsToShow = <div style={{width:100,height:100, marginLeft: "auto", marginRight: "auto" ,paddingTop: 30}}>{loadingIndicator}</div>
       } else {
-      //  debugger
-        if (!this.state.allContent || this.state.allContent.indexOf("<exception><path>/db</path><message>") > -1 ) {
-
-          resultsToShow = <Card style={{padding:10, height:65}}><span> No results to show yet </span></Card>
+        // debugger
+        if (!this.state.allContent
+                || this.state.allContent.indexOf("<exception><path>/db</path><message>") > -1  // This happens when there is an error at the server level, and no results are retrieved
+                || this.state.allContent.indexOf("<returned>0</returned>") > -1 ) { // And this when no results exist for the current search.
+          resultsToShow = <Card style={{padding:10, height:65}}><span>  </span></Card>
 
         } else {
+          if (this.state.allContent.length === 206) {
+          // Hide 'Download page' option if results empty
+          haveResults = false
+          } else {
           haveResults = true;
+          }
           resultsToShow = <span >
                           <Card style={{marginBottom:10}}><Paging pages={this.state.pagesAvailable} entriesPerPage={this.state.pageLimit} currentPage={this.state.currentPage} linkRoot={this.state.linkRoot} sorting={this.state.sorting} advSearchParameters={this.state.advSearchParameters}/></Card>
                           {this.processEntriesFromXML(this.state.allContent).map( (e) => e)}
@@ -261,15 +303,17 @@ class BrowseList extends Component {
     let sortbuttonStyle = {height:25,marginBottom:5,marginRight:5}
 
 
+    let haveFullTextQuery = this.state.advSearchParameters && this.state.advSearchParameters.query && (this.state.advSearchParameters.query.length > 0)
+    let orderingValue = (this.props.location.pathname.indexOf("scending") < 0) && haveFullTextQuery ? "relevance" : this.state.sortingFieldControl
 
 
     let orderingBar = <Card style={{position: "relative", float: "right", top: 10,paddingLeft:10, paddingRight: 5, marginRight:5,height:45}}>
                           <SelectField
                           // floatingLabelText="Sorting options"
-                          value={this.state.sortingFieldControl}
+                          value={orderingValue}
                           onChange={this.handleSortingChange}
                           >
-                          <MenuItem value={"relevance"} primaryText="Best Match" />
+                          { (this.state.linkRoot == "search") && haveFullTextQuery ? <MenuItem value={"relevance"} primaryText="Best Match" /> : ""}
                           <MenuItem value={"dateAsc"} primaryText="Date (earliest)" />
                           <MenuItem value={"dateDesc"} primaryText="Date (latest)" />
                           <MenuItem value={"volAsc"} primaryText="Register page (ascending)" />
@@ -283,7 +327,7 @@ class BrowseList extends Component {
                             <SelectField
                             // floatingLabelText="Sorting options"
                             style={{width:55}}
-                            value={this.state.pageLimit}
+                            value={parseInt(this.state.pageLimit)}
                             onChange={this.handlePageLimitChange}
                             >
                             {numbering.map( (v,i) => <MenuItem key={i} value={v} primaryText={v} />)}
@@ -292,10 +336,10 @@ class BrowseList extends Component {
 
       let filterTitleStyles = {fontWeight:"600",fontSize:16, display:"inline", float:"left"}
 
-      let filterYears = ["1557-1559"]//["1557-1560","1561-1565","1566-1570","1571-1580","1581-1590","1591-1595","1596-1600","1601-1605","1606-1610","1611-1615","1616-1620"]
+      let filterYears = ["1557-1560"]//["1557-1560","1561-1565","1566-1570","1571-1580","1581-1590","1591-1595","1596-1600","1601-1605","1606-1610","1611-1615","1616-1620"]
 
-      for ( var i = 1565; i <= 1620; i = i+5){
-         filterYears.push((i-5) + "-" + i);
+      for ( var i = 1565; i <= 1640; i = i+5){
+         filterYears.push((i-4) + "-" + i);
       }
 
 
@@ -316,7 +360,7 @@ class BrowseList extends Component {
 
                 <Card style={{ padding:15,paddingRight:5, width:"23%",borderRight:"",height:"auto",marginBottom:10, paddingLeft: 25}}>
 
-                    <h4 style={filterTitleStyles}>Date:</h4><h4 data-tip="Select Date Range" style={{fontWeight:"600",fontSize:16, float:"right", display:"inline"}}>?&#x20dd;</h4><ReactTooltip />
+                    <h4 style={filterTitleStyles}>Date:</h4><h4 data-tip="Select Date Range" style={{fontWeight:"600",fontSize:16, float:"right", display:"inline"}}><img height="20" src="/assets/lilQ.png" /></h4><ReactTooltip />
                     {filterYears.map((item,i) => <Checkbox label={item}
                               labelPosition="left"
                               key={i}
@@ -325,17 +369,17 @@ class BrowseList extends Component {
                               onClick={ () => { this.handleFilterClick("filter_date_"+item) }}
                       />) }
 
-                    <h4 style={filterTitleStyles}>Volume:</h4><h4 data-tip="Select Volume" style={{fontWeight:"600",fontSize:16, float:"right", display:"inline"}}>?&#x20dd;</h4><ReactTooltip />
-                    {["A","B","C"].map((item,i) => <Checkbox label={item}
+                    <h4 style={filterTitleStyles}>Volume:</h4><h4 data-tip="Original Register volumes, in chronological order" style={{fontWeight:"600",fontSize:16, float:"right", display:"inline"}}><img height="20" src="/assets/lilQ.png" /></h4><ReactTooltip />
+                    {["A","B","C","D"].map((item,i) => <Checkbox label={item}
                               labelPosition="left"
                               key={i}
                               checked={this.state["filter_volume_"+item]}
                               value={this.state["filter_volume_"+item]}
                               onClick={ () => { this.handleFilterClick("filter_volume_"+item) }}
                       />) }
-
-                    <h4 style={filterTitleStyles}>Entry type:</h4><h4 data-tip="Select Entry Type" style={{fontWeight:"600",fontSize:16, float:"right", display:"inline"}}>?&#x20dd;</h4><ReactTooltip />
-                    {["Annotated", "Cancelled", "Entered", "Incomplete", "NotPrinted", "Other", "Reassigned", "Shared", "Stock", "Unknown"].map((item,i) => <Checkbox label={item}
+//
+                    <h4 style={filterTitleStyles}>Entry type:</h4><h4 data-tip="Select Entry Type" style={{fontWeight:"600",fontSize:16, float:"right", display:"inline"}}><img height="20" src="/assets/lilQ.png" /></h4><ReactTooltip />
+                    {["Annotated","Cancelled", "Incomplete", "Shared", "Stock"].map((item,i) => <Checkbox label={item}
                               labelPosition="left"
                               key={i}
                               checked={this.state["filter_entryType_"+item]}
@@ -343,15 +387,6 @@ class BrowseList extends Component {
                               onClick={ () => { this.handleFilterClick("filter_entryType_"+item) }}
                       />) }
 
-                    <h4 style={filterTitleStyles}>Enterer Role:</h4><h4 data-tip="Select Enterer Role" style={{fontWeight:"600",fontSize:16, float:"right", display:"inline"}}>?&#x20dd;</h4><ReactTooltip />
-                    {["Stationer","Non-Stationer"].map((item,i) => <Checkbox label={item}
-                              labelPosition="left"
-                              key={i}
-                              checked={this.state["filter_entererRole_"+item]}
-                              value={this.state["filter_entererRole_"+item]}
-                              onClick={ () => { this.handleFilterClick("filter_entererRole_"+item) }}
-                      />) }
-                      {/* <hr style={{marginLeft:-10,marginRight:10}}/> */}
 
                 </Card>
                 <div style={{ paddingLeft:10, height:"100%", minHeight:1000, width:"80%",paddingTop:0}}>
@@ -361,10 +396,19 @@ class BrowseList extends Component {
                   {
                     (haveResults) ? <RaisedButton
                     icon={<DownloadIcon/>}
-                    label="Download Page"
-                    style={{width:"100%"}}
+                    label="Download XML"
+                    style={{width:"49%"}}
                     labelStyle={{fontSize:13}}
-                    onClick={()=> {this.getDownloadable()}}
+                    onClick={()=> {this.getDownloadableXML()}}
+                  /> : <span></span>
+                  }
+                  {
+                    (haveResults) ? <RaisedButton
+                    icon={<DownloadIcon/>}
+                    label="Download Text"
+                    style={{width:"49%", float:"right"}}
+                    labelStyle={{fontSize:13}}
+                    onClick={()=> {this.getDownloadableTXT()}}
                   /> : <span></span>
                   }
                 </div>
